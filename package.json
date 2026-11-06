@@ -1,0 +1,39 @@
+{
+  "name": "soft-explorer",
+  "private": true,
+  "version": "1.0.0",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "format:rust": "node scripts/format-rust.mjs",
+    "format:rust:check": "node scripts/format-rust.mjs --check",
+    "format:web": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.mjs\" \"*.{json,ts,html,md}\" \"src-tauri/**/*.json\"",
+    "format:web:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.mjs\" \"*.{json,ts,html,md}\" \"src-tauri/**/*.json\"",
+    "format": "npm run format:web && npm run format:rust",
+    "format:check": "npm run format:web:check && npm run format:rust:check"
+  },
+  "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
+    "@tauri-apps/api": "^2.12.0",
+    "@tauri-apps/plugin-dialog": "^2.8.0",
+    "@tanstack/react-virtual": "^3.13.0",
+    "lucide-react": "^1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "prettier": "^3.9.10",
+    "typescript": "~5.8.0",
+    "vite": "^7.0.0"
+  }
+}
