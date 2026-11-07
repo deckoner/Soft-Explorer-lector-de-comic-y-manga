@@ -2,18 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import authorLogo from "../../deckoner_favicon.svg";
 import {
+  Asterisk,
+  ArrowLeft,
   BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
   Compass,
   FolderOpen,
+  ExternalLink,
+  GitBranch,
   Heart,
   Home,
   LibraryBig,
   ListFilter,
+  Mail,
   Maximize2,
   Minus,
   PanelLeftClose,
@@ -22,15 +29,26 @@ import {
   SlidersHorizontal,
   Sun,
   X,
+  Globe,
 } from "lucide-react";
-import type { InitialState, Manga, Route, ScanProgress, ScanSummary } from "./types";
+import type {
+  Chapter,
+  InitialState,
+  Manga,
+  PageSource,
+  Route,
+  ScanProgress,
+  ScanSummary,
+} from "./types";
 import { errorMessage, formatCount } from "./format";
 import LibraryGrid from "./LibraryGrid";
+import ChapterBrowser from "./ChapterBrowser";
 import Reader from "./Reader";
 
-type Dialog = "settings" | "cover" | "menu" | null;
+type Dialog = "settings" | "cover" | "menu" | "author" | null;
+type ReadingTarget = { manga: Manga; chapter?: Chapter };
 
-// These defaults are mirrored in the local SQLite preferences store.
+// Valores iniciales iguales a los predeterminados guardados por el backend en SQLite.
 const DEFAULT_SETTINGS: Record<string, string> = {
   theme: "light",
   direction: "western",
@@ -54,12 +72,14 @@ export default function App() {
   const [compact, setCompact] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [selected, setSelected] = useState<Manga | null>(null);
-  const [reading, setReading] = useState<Manga | null>(null);
+  const [chapterView, setChapterView] = useState<Manga | null>(null);
+  const [chapterRevision, setChapterRevision] = useState(0);
+  const [reading, setReading] = useState<ReadingTarget | null>(null);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [scanning, setScanning] = useState(false);
   const [toast, setToast] = useState("");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  // Start with a compact rail at medium widths and a closed drawer on small screens.
+  // En ventanas medianas se pliega la barra lateral; en móviles queda cerrada.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 1100);
   const searchInput = useRef<HTMLInputElement>(null);
 
@@ -89,7 +109,7 @@ export default function App() {
 
   const runScan = useCallback(
     async (announce = true) => {
-      // Rust performs the filesystem walk off the UI thread and streams progress events.
+      // El backend recorre el disco fuera del hilo de la interfaz y envía eventos de progreso.
       setScanning(true);
       setProgress({ done: 0, total: 0, genres: 0, images: 0, current: "Preparando escaneo…" });
       try {
@@ -111,7 +131,7 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     let unlisten: UnlistenFn | undefined;
-    // A plain browser can preview the empty-state UI; native commands run only in Tauri.
+    // En un navegador se muestra el estado vacío; los comandos nativos solo existen en Tauri.
     if (!isTauri()) {
       setState({ libraryPath: null, mangaCount: 0, genres: [], settings: DEFAULT_SETTINGS });
       setSettings(DEFAULT_SETTINGS);
@@ -146,13 +166,12 @@ export default function App() {
       alive = false;
       unlisten?.();
     };
-    // Initial load should only run once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // La carga inicial y la suscripción a eventos se realizan una sola vez.
   }, []);
 
   useEffect(() => {
     if (!state) return;
-    // Avoid a SQLite round-trip for every character typed into search.
+    // Agrupa las pulsaciones de búsqueda antes de consultar SQLite.
     const handle = window.setTimeout(() => void refreshManga(), 110);
     return () => window.clearTimeout(handle);
   }, [state, route, genre, query, sort, refreshManga]);
@@ -174,7 +193,7 @@ export default function App() {
 
   useEffect(() => {
     const compact = window.matchMedia("(max-width: 1100px)");
-    // Keep the sidebar mode aligned with the actual CSS viewport, not physical pixels.
+    // Usa el ancho lógico del WebView para mantener sincronizada la barra lateral.
     const syncSidebar = (event: MediaQueryListEvent) => setSidebarCollapsed(event.matches);
     compact.addEventListener("change", syncSidebar);
     return () => compact.removeEventListener("change", syncSidebar);
@@ -202,6 +221,15 @@ export default function App() {
   const changeRoute = (next: Route) => {
     setRoute(next);
     setGenre("");
+    setChapterView(null);
+  };
+
+  const openManga = (manga: Manga) => {
+    if (manga.isSeries) {
+      setChapterView(manga);
+    } else {
+      setReading({ manga });
+    }
   };
 
   const toggleFavorite = async (manga: Manga) => {
@@ -234,13 +262,14 @@ export default function App() {
     }
   };
 
-  const heading =
-    genre ||
-    (route === "Favoritos"
-      ? "Tus favoritos"
-      : route === "Biblioteca"
-        ? "Toda tu biblioteca"
-        : "Explora tu colección");
+  const heading = chapterView
+    ? chapterView.title
+    : genre ||
+      (route === "Favoritos"
+        ? "Tus favoritos"
+        : route === "Biblioteca"
+          ? "Toda tu biblioteca"
+          : "Explora tu colección");
   const currentCount = mangas.length;
   const hasLibrary = Boolean(state?.libraryPath);
 
@@ -338,6 +367,7 @@ export default function App() {
                 onClick={() => {
                   setGenre(name);
                   setRoute("Biblioteca");
+                  setChapterView(null);
                 }}
               >
                 <span className="genre-dot" />
@@ -383,206 +413,232 @@ export default function App() {
                   {heading}
                   <span className="title-period">.</span>
                 </h1>
-                <p className="welcome-sub">Colección local</p>
+                <p className="welcome-sub">
+                  {chapterView ? `SERIE / ${chapterView.genre.toUpperCase()}` : "Colección local"}
+                </p>
               </div>
               <div className="header-actions">
-                <button
-                  className="sun-button"
-                  title="Cambiar tema"
-                  onClick={() => {
-                    const next = {
-                      ...settings,
-                      theme: settings.theme === "dark" ? "light" : "dark",
-                    };
-                    void saveSettings(next);
-                  }}
-                >
-                  <Sun size={17} />
-                </button>
-                <button
-                  className="primary-button scan-button"
-                  onClick={() => (hasLibrary ? void runScan(true) : void chooseLibrary())}
-                  disabled={scanning}
-                >
-                  {scanning ? <span className="spinner" /> : <LibraryBig size={17} />}
-                  {scanning ? "Actualizando…" : "Actualizar biblioteca"}
-                </button>
-              </div>
-            </section>
-
-            <section className="dashboard-strip">
-              <div className="strip-copy">
-                <span className="strip-kicker">
-                  MANGA INDEX <i /> ISSUE 001
-                </span>
-                <strong>
-                  Tu biblioteca.
-                  <br />
-                  En orden.
-                </strong>
-              </div>
-              <div className="strip-art" aria-hidden="true">
-                <span className="archive-stamp">
-                  SE
-                  <br />
-                  <b>01</b>
-                </span>
-                <div className="archive-lines">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </div>
-                <span className="archive-mark">✳</span>
-              </div>
-              <div className="strip-stats">
-                <div className="stat-item">
-                  <span>OBRAS</span>
-                  <strong>{formatCount(state?.mangaCount ?? 0)}</strong>
-                </div>
-                <div className="stat-divider" />
-                <div className="stat-item">
-                  <span>GÉNEROS</span>
-                  <strong>{formatCount(state?.genres.length ?? 0)}</strong>
-                </div>
-                <div className="stat-divider" />
-                <div className="stat-item">
-                  <span>EN ESTA VISTA</span>
-                  <strong>{formatCount(currentCount)}</strong>
-                </div>
-              </div>
-            </section>
-
-            {progress && (
-              <div className="scan-progress">
-                <div className="progress-top">
-                  <span>
-                    <span className="spinner coral-spinner" /> {progress.current}
-                  </span>
-                  <b>
-                    {progress.total
-                      ? `${Math.round((progress.done / progress.total) * 100)}%`
-                      : "…"}
-                  </b>
-                </div>
-                <div className="progress-track">
-                  <i
-                    style={{
-                      width: progress.total ? `${(progress.done / progress.total) * 100}%` : "18%",
-                    }}
-                  />
-                </div>
-                <div className="progress-meta">
-                  <span>{progress.genres} géneros</span>
-                  <span>
-                    {formatCount(progress.done)} / {formatCount(progress.total)} obras
-                  </span>
-                  <span>{formatCount(progress.images)} imágenes</span>
-                </div>
-              </div>
-            )}
-
-            <section className="collection-section">
-              <div className="section-heading">
-                <div>
-                  <span className="eyebrow small-eyebrow">
-                    CATÁLOGO /{" "}
-                    {route === "Favoritos" ? "FAVORITOS" : genre ? "GÉNERO" : "TODAS LAS OBRAS"}
-                  </span>
-                  <h2>
-                    {genre ||
-                      (route === "Favoritos"
-                        ? "Favoritos"
-                        : route === "Biblioteca"
-                          ? "Todas las obras"
-                          : "Índice de lectura")}
-                  </h2>
-                </div>
-                <div className="collection-tools">
-                  <label className="search-box">
-                    <Search size={17} />
-                    <input
-                      ref={searchInput}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Buscar una obra…"
-                    />
-                    <kbd>Ctrl K</kbd>
-                  </label>
-                  <label className="select-box">
-                    <ListFilter size={16} />
-                    <select
-                      value={sort}
-                      onChange={(event) => setSort(event.target.value)}
-                      aria-label="Ordenar mangas"
+                {chapterView ? (
+                  <button
+                    className="quiet-button chapter-back-button"
+                    onClick={() => setChapterView(null)}
+                  >
+                    <ArrowLeft size={16} /> Volver a biblioteca
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="sun-button"
+                      title="Cambiar tema"
+                      onClick={() => {
+                        const next = {
+                          ...settings,
+                          theme: settings.theme === "dark" ? "light" : "dark",
+                        };
+                        void saveSettings(next);
+                      }}
                     >
-                      <option>Nombre A-Z</option>
-                      <option>Nombre Z-A</option>
-                      <option>Género</option>
-                      <option>Favoritos primero</option>
-                      <option>Últimos añadidos</option>
-                      <option>Últimos leídos</option>
-                    </select>
-                    <ChevronDown size={14} />
-                  </label>
-                  <label className="cover-size-control" title="Tamaño de las portadas">
-                    <input
-                      type="range"
-                      min="144"
-                      max="192"
-                      step="8"
-                      value={coverSize}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setCoverSize(Number(value));
-                        setSettings((current) => ({ ...current, coverSize: value }));
-                        void invoke("set_preference", { key: "coverSize", value });
+                      <Sun size={17} />
+                    </button>
+                    <button
+                      className="primary-button scan-button"
+                      onClick={() => (hasLibrary ? void runScan(true) : void chooseLibrary())}
+                      disabled={scanning}
+                    >
+                      {scanning ? <span className="spinner" /> : <LibraryBig size={17} />}
+                      {scanning ? "Actualizando…" : "Actualizar biblioteca"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
+
+            {chapterView ? (
+              <ChapterBrowser
+                key={`${chapterView.id}:${chapterRevision}`}
+                manga={chapterView}
+                onRead={(chapter) => setReading({ manga: chapterView, chapter })}
+                notify={notify}
+              />
+            ) : (
+              <>
+                <section className="dashboard-strip">
+                  <div className="strip-copy">
+                    <span className="strip-kicker">
+                      MANGA INDEX <i /> ISSUE 001
+                    </span>
+                    <strong>
+                      Tu biblioteca.
+                      <br />
+                      En orden.
+                    </strong>
+                  </div>
+                  <div className="strip-art" aria-hidden="true">
+                    <span className="archive-stamp">
+                      SE
+                      <br />
+                      <b>01</b>
+                    </span>
+                    <div className="archive-lines">
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                    <Asterisk className="archive-mark" size={15} aria-hidden="true" />
+                  </div>
+                  <div className="strip-stats">
+                    <div className="stat-item">
+                      <span>OBRAS</span>
+                      <strong>{formatCount(state?.mangaCount ?? 0)}</strong>
+                    </div>
+                    <div className="stat-divider" />
+                    <div className="stat-item">
+                      <span>GÉNEROS</span>
+                      <strong>{formatCount(state?.genres.length ?? 0)}</strong>
+                    </div>
+                    <div className="stat-divider" />
+                    <div className="stat-item">
+                      <span>EN ESTA VISTA</span>
+                      <strong>{formatCount(currentCount)}</strong>
+                    </div>
+                  </div>
+                </section>
+
+                {progress && (
+                  <div className="scan-progress">
+                    <div className="progress-top">
+                      <span>
+                        <span className="spinner coral-spinner" /> {progress.current}
+                      </span>
+                      <b>
+                        {progress.total
+                          ? `${Math.round((progress.done / progress.total) * 100)}%`
+                          : "…"}
+                      </b>
+                    </div>
+                    <div className="progress-track">
+                      <i
+                        style={{
+                          width: progress.total
+                            ? `${(progress.done / progress.total) * 100}%`
+                            : "18%",
+                        }}
+                      />
+                    </div>
+                    <div className="progress-meta">
+                      <span>{progress.genres} géneros</span>
+                      <span>
+                        {formatCount(progress.done)} / {formatCount(progress.total)} obras
+                      </span>
+                      <span>{formatCount(progress.images)} imágenes</span>
+                    </div>
+                  </div>
+                )}
+
+                <section className="collection-section">
+                  <div className="section-heading">
+                    <div>
+                      <span className="eyebrow small-eyebrow">
+                        CATÁLOGO /{" "}
+                        {route === "Favoritos" ? "FAVORITOS" : genre ? "GÉNERO" : "TODAS LAS OBRAS"}
+                      </span>
+                      <h2>
+                        {genre ||
+                          (route === "Favoritos"
+                            ? "Favoritos"
+                            : route === "Biblioteca"
+                              ? "Todas las obras"
+                              : "Índice de lectura")}
+                      </h2>
+                    </div>
+                    <div className="collection-tools">
+                      <label className="search-box">
+                        <Search size={17} />
+                        <input
+                          ref={searchInput}
+                          value={query}
+                          onChange={(event) => setQuery(event.target.value)}
+                          placeholder="Buscar una obra…"
+                        />
+                        <kbd>Ctrl K</kbd>
+                      </label>
+                      <label className="select-box">
+                        <ListFilter size={16} />
+                        <select
+                          value={sort}
+                          onChange={(event) => setSort(event.target.value)}
+                          aria-label="Ordenar mangas"
+                        >
+                          <option>Nombre A-Z</option>
+                          <option>Nombre Z-A</option>
+                          <option>Género</option>
+                          <option>Favoritos primero</option>
+                          <option>Últimos añadidos</option>
+                          <option>Últimos leídos</option>
+                        </select>
+                        <ChevronDown size={14} />
+                      </label>
+                      <label className="cover-size-control" title="Tamaño de las portadas">
+                        <input
+                          type="range"
+                          min="144"
+                          max="192"
+                          step="8"
+                          value={coverSize}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setCoverSize(Number(value));
+                            setSettings((current) => ({ ...current, coverSize: value }));
+                            void invoke("set_preference", { key: "coverSize", value });
+                          }}
+                        />
+                      </label>
+                      <button
+                        className={`view-toggle ${compact ? "active" : ""}`}
+                        title="Vista compacta"
+                        onClick={() => setCompact(!compact)}
+                      >
+                        <SlidersHorizontal size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {!hasLibrary ? (
+                    <EmptyLibrary onChoose={() => void chooseLibrary()} />
+                  ) : mangas.length ? (
+                    <LibraryGrid
+                      mangas={mangas}
+                      coverSize={coverSize}
+                      compact={compact}
+                      onOpen={openManga}
+                      onFavorite={(manga) => void toggleFavorite(manga)}
+                      onMore={(manga) => {
+                        setSelected(manga);
+                        setDialog("menu");
                       }}
                     />
-                  </label>
-                  <button
-                    className={`view-toggle ${compact ? "active" : ""}`}
-                    title="Vista compacta"
-                    onClick={() => setCompact(!compact)}
-                  >
-                    <SlidersHorizontal size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {!hasLibrary ? (
-                <EmptyLibrary onChoose={() => void chooseLibrary()} />
-              ) : mangas.length ? (
-                <LibraryGrid
-                  mangas={mangas}
-                  coverSize={coverSize}
-                  compact={compact}
-                  onOpen={(manga) => setReading(manga)}
-                  onFavorite={(manga) => void toggleFavorite(manga)}
-                  onMore={(manga) => {
-                    setSelected(manga);
-                    setDialog("menu");
-                  }}
-                />
-              ) : (
-                <EmptyResults
-                  hasQuery={Boolean(query)}
-                  onClear={() => {
-                    setQuery("");
-                    setGenre("");
-                    changeRoute("Inicio");
-                  }}
-                />
-              )}
-            </section>
-            <footer className="content-footer">
-              <span>SOFT EXPLORER / BUILD 01</span>
-            </footer>
+                  ) : (
+                    <EmptyResults
+                      hasQuery={Boolean(query)}
+                      onClear={() => {
+                        setQuery("");
+                        setGenre("");
+                        changeRoute("Inicio");
+                      }}
+                    />
+                  )}
+                </section>
+                <footer className="content-footer">
+                  <span>SOFT EXPLORER / BUILD 01</span>
+                </footer>
+              </>
+            )}
           </div>
         </main>
       </div>
@@ -597,8 +653,12 @@ export default function App() {
             setDialog(null);
             void chooseLibrary();
           }}
+          onOpenAuthor={() => setDialog("author")}
           notify={notify}
         />
+      )}
+      {dialog === "author" && (
+        <AuthorDialog onClose={() => setDialog("settings")} notify={notify} />
       )}
       {dialog === "cover" && selected && (
         <CoverDialog
@@ -617,7 +677,7 @@ export default function App() {
           onClose={() => setDialog(null)}
           onRead={() => {
             setDialog(null);
-            setReading(selected);
+            openManga(selected);
           }}
           onCover={() => setDialog("cover")}
           onFavorite={() => {
@@ -628,10 +688,13 @@ export default function App() {
       )}
       {reading && (
         <Reader
-          manga={reading}
+          key={`${reading.manga.id}:${reading.chapter?.id ?? "one-shot"}`}
+          manga={reading.manga}
+          chapter={reading.chapter}
           settings={settings}
           onClose={() => {
             setReading(null);
+            if (reading.chapter) setChapterRevision((revision) => revision + 1);
             void refreshManga();
           }}
           notify={notify}
@@ -686,8 +749,8 @@ function EmptyLibrary({ onChoose }: { onChoose: () => void }) {
           <i />
           <i />
         </div>
-        <div className="empty-star star-a">+</div>
-        <div className="empty-star star-b">✳</div>
+        <Asterisk className="empty-star star-a" size={16} aria-hidden="true" />
+        <Asterisk className="empty-star star-b" size={12} aria-hidden="true" />
       </div>
       <span className="eyebrow">ARCHIVE / EMPTY</span>
       <h3>
@@ -732,6 +795,7 @@ function SettingsDialog({
   onSave,
   onClose,
   onChooseLibrary,
+  onOpenAuthor,
   notify,
 }: {
   settings: Record<string, string>;
@@ -739,6 +803,7 @@ function SettingsDialog({
   onSave: (settings: Record<string, string>) => void;
   onClose: () => void;
   onChooseLibrary: () => void;
+  onOpenAuthor: () => void;
   notify: (message: string) => void;
 }) {
   const [draft, setDraft] = useState<Record<string, string>>({
@@ -901,6 +966,15 @@ function SettingsDialog({
               Limpiar caché
             </button>
           </div>
+          <div className="setting-row setting-actions-row">
+            <span>
+              <b>Autor</b>
+              <small>Información, enlaces y contacto</small>
+            </span>
+            <button className="quiet-button" onClick={onOpenAuthor}>
+              Deckoner
+            </button>
+          </div>
         </div>
         <div className="modal-actions">
           <button className="quiet-button" onClick={onClose}>
@@ -915,7 +989,86 @@ function SettingsDialog({
   );
 }
 
-/** Selector limitado a páginas de la obra; la previsualización usa el caché externo. */
+/** Ficha del autor integrada en Configuración; los enlaces se abren en el navegador del sistema. */
+function AuthorDialog({
+  onClose,
+  notify,
+}: {
+  onClose: () => void;
+  notify: (message: string) => void;
+}) {
+  const visit = async (url: string) => {
+    try {
+      await openUrl(url);
+    } catch (error) {
+      notify(errorMessage(error));
+    }
+  };
+
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section className="author-modal modal-card">
+        <div className="modal-heading">
+          <div>
+            <span className="eyebrow">PROJECT / AUTHOR</span>
+            <h2>Hecho por Deckoner.</h2>
+            <p>Una herramienta independiente para leer colecciones locales.</p>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="Cerrar">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="author-card">
+          <img className="author-stamp" src={authorLogo} alt="Logotipo de Deckoner" />
+          <div>
+            <span className="author-kicker">CREADOR DE SOFT EXPLORER</span>
+            <strong>Deckoner</strong>
+            <p>Diseñado y desarrollado con cariño para una biblioteca de manga personal.</p>
+          </div>
+        </div>
+        <div className="author-links">
+          <button className="author-link" onClick={() => void visit("https://www.deckoner.com/")}>
+            <Globe size={18} />
+            <span>
+              <small>SITIO WEB</small>deckoner.com
+            </span>
+            <ExternalLink size={15} />
+          </button>
+          <button className="author-link" onClick={() => void visit("https://github.com/deckoner")}>
+            <GitBranch size={18} />
+            <span>
+              <small>GITHUB</small>github.com/deckoner
+            </span>
+            <ExternalLink size={15} />
+          </button>
+          <button
+            className="author-link"
+            onClick={() => void visit("mailto:deckonerdev@gmail.com")}
+          >
+            <Mail size={18} />
+            <span>
+              <small>CONTACTO</small>deckonerdev@gmail.com
+            </span>
+            <ExternalLink size={15} />
+          </button>
+        </div>
+        <div className="author-license">
+          OPEN SOURCE <i /> LICENCIA GPL-3.0
+        </div>
+        <div className="modal-actions">
+          <button className="primary-button" onClick={onClose}>
+            Volver a configuración
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/** Permite elegir una portada entre las páginas de la obra y previsualizarla desde la caché. */
 function CoverDialog({
   manga,
   onClose,
@@ -927,27 +1080,40 @@ function CoverDialog({
   onSaved: () => void;
   notify: (message: string) => void;
 }) {
-  const [pages, setPages] = useState<string[]>([]);
-  const [selectedPath, setSelectedPath] = useState(manga.coverPath);
+  const [pages, setPages] = useState<PageSource[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [previewUrl, setPreviewUrl] = useState("");
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    invoke<string[]>("get_pages", { mangaId: manga.id })
-      .then((items) => setPages(items))
+    invoke<PageSource[]>("get_pages", { mangaId: manga.id })
+      .then((items) => {
+        setPages(items);
+        const coverIndex = items.findIndex(
+          (item) => item.path === manga.coverPath && item.entry === manga.coverEntry,
+        );
+        setSelectedIndex(Math.max(0, coverIndex));
+      })
       .catch((error) => notify(errorMessage(error)));
   }, [manga.id, notify]);
+
+  const selectedPage = pages[selectedIndex];
   useEffect(() => {
-    if (!selectedPath) return;
-    invoke<string>("get_thumbnail", { path: selectedPath })
+    if (!selectedPage) return;
+    invoke<string>("get_thumbnail", { path: selectedPage.path, entry: selectedPage.entry })
       .then((path) => {
         setPreviewUrl(convertFileSrc(path));
       })
       .catch(() => setPreviewUrl(""));
-  }, [selectedPath]);
+  }, [selectedPage]);
   const save = async () => {
+    if (!selectedPage) return;
     setSaving(true);
     try {
-      await invoke("set_cover", { mangaId: manga.id, path: selectedPath });
+      await invoke("set_cover", {
+        mangaId: manga.id,
+        path: selectedPage.path,
+        entry: selectedPage.entry,
+      });
       notify("Portada actualizada");
       onSaved();
     } catch (error) {
@@ -976,15 +1142,15 @@ function CoverDialog({
         </div>
         <div className="cover-picker">
           <div className="cover-page-list">
-            {pages.map((path, index) => (
+            {pages.map((item, index) => (
               <button
-                key={path}
-                className={`cover-page-option ${path === selectedPath ? "chosen" : ""}`}
-                onClick={() => setSelectedPath(path)}
+                key={`${item.path}:${item.entry ?? ""}`}
+                className={`cover-page-option ${index === selectedIndex ? "chosen" : ""}`}
+                onClick={() => setSelectedIndex(index)}
               >
                 <span className="cover-page-index">{String(index + 1).padStart(2, "0")}</span>
-                <span>{path.split(/[\\/]/).pop()}</span>
-                {path === selectedPath && <Check size={15} />}
+                <span>{item.label}</span>
+                {index === selectedIndex && <Check size={15} />}
               </button>
             ))}
           </div>
@@ -1007,7 +1173,7 @@ function CoverDialog({
           <button
             className="primary-button"
             onClick={() => void save()}
-            disabled={!selectedPath || saving}
+            disabled={!selectedPage || saving}
           >
             {saving ? "Guardando…" : "Usar esta portada"}
             <Check size={16} />
@@ -1040,7 +1206,11 @@ function ActionDialog({
         <div className="action-menu-title">{manga.title}</div>
         <button onClick={onRead}>
           <BookOpen size={16} />
-          {manga.lastPage ? `Continuar · página ${manga.lastPage + 1}` : "Leer desde el inicio"}
+          {manga.isSeries
+            ? "Elegir capítulo"
+            : manga.lastRead > 0
+              ? `Continuar · página ${manga.lastPage + 1}`
+              : "Leer desde el inicio"}
         </button>
         <button onClick={onFavorite}>
           <Heart size={16} />

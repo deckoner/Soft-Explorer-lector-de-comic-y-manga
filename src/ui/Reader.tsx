@@ -23,31 +23,34 @@ import {
   Square,
   X,
 } from "lucide-react";
-import type { Manga } from "./types";
+import type { Chapter, Manga, PageSource } from "./types";
 import { errorMessage } from "./format";
 
 type Settings = Record<string, string>;
 
+/** Lector de páginas con navegación, progreso, doble página y presentación automática. */
 export default function Reader({
   manga,
+  chapter,
   settings,
   onClose,
   notify,
 }: {
   manga: Manga;
+  chapter?: Chapter;
   settings: Settings;
   onClose: () => void;
   notify: (message: string) => void;
 }) {
-  const [pages, setPages] = useState<string[]>([]);
+  const [pages, setPages] = useState<PageSource[]>([]);
   const [readerImages, setReaderImages] = useState<string[]>([]);
-  const [page, setPage] = useState(manga.lastPage || 0);
+  const [page, setPage] = useState(chapter?.lastPage ?? manga.lastPage ?? 0);
   const [busy, setBusy] = useState(true);
   const [fit, setFit] = useState(settings.fit || "screen");
   const [direction, setDirection] = useState(settings.direction || "western");
   const [doublePage, setDoublePage] = useState(settings.doublePage === "true");
 
-  // Presentation mode starts clean; mouse movement reveals controls temporarily.
+  // La presentación comienza sin controles; el movimiento del ratón los muestra brevemente.
   const [controls, setControls] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [autoActive, setAutoActive] = useState(false);
@@ -59,23 +62,31 @@ export default function Reader({
 
   useEffect(() => {
     let alive = true;
-    invoke<string[]>("get_pages", { mangaId: manga.id })
+    const pageRequest = chapter
+      ? invoke<PageSource[]>("get_chapter_pages", { chapterId: chapter.id })
+      : invoke<PageSource[]>("get_pages", { mangaId: manga.id });
+    pageRequest
       .then((data) => {
         if (alive) {
           setPages(data);
-          setPage(Math.min(Math.max(0, manga.lastPage), Math.max(0, data.length - 1)));
+          const resumePage = chapter
+            ? chapter.lastRead > 0
+              ? chapter.lastPage
+              : 0
+            : manga.lastPage;
+          setPage(Math.min(Math.max(0, resumePage), Math.max(0, data.length - 1)));
         }
       })
       .catch((reason) => setError(errorMessage(reason)))
       .finally(() => alive && setBusy(false));
-    // Use the native fullscreen state rather than simulating it with CSS.
+    // Se usa el modo de pantalla completa nativo de la ventana.
     void getCurrentWindow().setFullscreen(true);
     return () => {
       alive = false;
       void getCurrentWindow().setFullscreen(false);
       if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
     };
-  }, [manga.id, manga.lastPage]);
+  }, [chapter?.id, chapter?.lastPage, chapter?.lastRead, manga.id, manga.lastPage]);
 
   const close = useCallback(() => {
     setPlaying(false);
@@ -87,11 +98,12 @@ export default function Reader({
   const savePage = useCallback(
     (next: number) => {
       setPage(next);
-      void invoke("save_progress", { mangaId: manga.id, page: next }).catch((reason) =>
-        notify(errorMessage(reason)),
-      );
+      const progressRequest = chapter
+        ? invoke("save_chapter_progress", { chapterId: chapter.id, page: next })
+        : invoke("save_progress", { mangaId: manga.id, page: next });
+      void progressRequest.catch((reason) => notify(errorMessage(reason)));
     },
-    [manga.id, notify],
+    [chapter?.id, manga.id, notify],
   );
 
   const next = useCallback(() => {
@@ -112,7 +124,7 @@ export default function Reader({
   const first = () => savePage(0);
   const last = () => savePage(Math.max(0, total - 1));
   const pageIndices = useMemo(() => {
-    // Keep the cover alone in a spread and swap the pair for right-to-left reading.
+    // La portada ocupa una página; en lectura oriental se invierte el orden de la pareja.
     if (doublePage && page > 0 && page + 1 < total)
       return direction === "eastern" ? [page + 1, page] : [page, page + 1];
     return [page];
@@ -120,12 +132,16 @@ export default function Reader({
 
   useEffect(() => {
     if (!pages.length) return;
-    // Resolve only the visible page(s); GIF/TIFF conversion is delegated to Rust workers.
+    // Solo se preparan las páginas visibles. Rust convierte GIF y TIFF fuera del hilo de UI.
     let alive = true;
     setReaderImages([]);
     Promise.all(
       pageIndices.map((index) =>
-        invoke<string>("get_reader_image", { path: pages[index] })
+        invoke<string>("get_reader_image", {
+          path: pages[index].path,
+          entry: pages[index].entry,
+          label: pages[index].label,
+        })
           .then((path) => convertFileSrc(path))
           .catch(() => ""),
       ),
@@ -157,7 +173,7 @@ export default function Reader({
   };
 
   const enterPresentation = () => {
-    // Autoplay should not leave its toolbar sitting on top of the artwork.
+    // Durante la presentación, la barra de controles no debe tapar la página.
     if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
     setControls(false);
   };
@@ -257,10 +273,10 @@ export default function Reader({
               readerImages.length === pageIndices.length ? (
                 readerImages[position] ? (
                   <img
-                    key={pages[index]}
+                    key={`${pages[index].path}:${pages[index].entry ?? ""}`}
                     draggable={false}
                     src={readerImages[position]}
-                    alt={`Página ${index + 1}`}
+                    alt={pages[index].label || `Página ${index + 1}`}
                     onError={() =>
                       setReaderImages((current) =>
                         current.map((source, imageIndex) =>
@@ -270,14 +286,20 @@ export default function Reader({
                     }
                   />
                 ) : (
-                  <div className="reader-page-broken" key={pages[index]}>
+                  <div
+                    className="reader-page-broken"
+                    key={`${pages[index].path}:${pages[index].entry ?? ""}`}
+                  >
                     Esta página no se pudo abrir.
                     <br />
                     <span>Usa → para continuar</span>
                   </div>
                 )
               ) : (
-                <div className="reader-page-loading" key={pages[index]}>
+                <div
+                  className="reader-page-loading"
+                  key={`${pages[index].path}:${pages[index].entry ?? ""}`}
+                >
                   <span className="spinner" />
                 </div>
               ),
@@ -313,7 +335,7 @@ export default function Reader({
         </button>
         <div className="reader-title">
           <span className="reader-kicker">AHORA LEYENDO</span>
-          <strong>{manga.title}</strong>
+          <strong>{chapter ? `${manga.title} / ${chapter.title}` : manga.title}</strong>
         </div>
         <div className="reader-tools">
           <button

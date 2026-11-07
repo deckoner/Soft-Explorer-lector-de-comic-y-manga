@@ -1,4 +1,4 @@
-/* Centralized Retro-Modern Geek theme tokens; keep the light and dark palettes paired. */
+/* Variables compartidas del tema Retro-Modern Geek y sus paletas clara y oscura. */
 :root {
   font-family: "DM Sans", sans-serif;
   color: #9e3b32;
@@ -721,8 +721,9 @@ button:disabled {
   position: absolute;
   top: 8px;
   right: 13px;
+  width: 15px;
+  height: 15px;
   color: var(--coral);
-  font-size: 13px;
 }
 .strip-stats {
   width: 35%;
@@ -1082,8 +1083,8 @@ button:disabled {
   white-space: nowrap;
 }
 .tiny-favorite {
+  flex: none;
   color: var(--yellow);
-  font-size: 10px;
 }
 .manga-subtitle {
   display: flex;
@@ -1200,12 +1201,10 @@ button:disabled {
 .star-a {
   top: 9px;
   right: 24px;
-  font-size: 16px;
 }
 .star-b {
   bottom: 16px;
   left: 17px;
-  font-size: 12px;
   color: var(--red);
 }
 .empty-state > .eyebrow {
@@ -1584,6 +1583,299 @@ button:disabled {
   border-color: var(--red);
   background: var(--yellow);
 }
+.author-modal {
+  width: min(38rem, 94vw);
+}
+.author-card {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-s);
+  background: var(--cream);
+}
+.author-stamp {
+  width: 4rem;
+  height: 4rem;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.author-kicker {
+  color: var(--red-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.author-card strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.25rem;
+}
+.author-card p {
+  margin: 0.25rem 0 0;
+  color: var(--red-dim);
+  font-size: 0.875rem;
+}
+.author-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.author-link {
+  min-width: 0;
+  min-height: 3.5rem;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-s);
+  color: var(--red);
+  background: var(--paper);
+  text-align: left;
+  cursor: pointer;
+}
+.author-link:hover {
+  transform: translate(-2px, -2px);
+  background: var(--yellow);
+  box-shadow: var(--shadow-small);
+}
+.author-link > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+}
+.author-link small {
+  color: var(--red-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.author-license {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  color: var(--red-dim);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+.author-license i {
+  width: 0.35rem;
+  height: 0.35rem;
+  background: var(--blue);
+}
+.chapter-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.chapter-browser {
+  min-height: 24rem;
+  padding: 1.15rem 0 1rem;
+}
+.chapter-browser-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 4px 1rem;
+}
+.chapter-browser-heading h2 {
+  margin: 0.4rem 0 0;
+  color: var(--red);
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+}
+.chapter-browser-heading p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0;
+  color: var(--red-dim);
+  font-size: 0.75rem;
+}
+.chapter-browser-heading p i {
+  width: 3px;
+  height: 3px;
+  background: var(--coral);
+}
+.chapter-continue {
+  max-width: min(25rem, 50%);
+  min-height: 3.25rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-s);
+  color: var(--red);
+  background: var(--yellow);
+  text-align: left;
+  cursor: pointer;
+}
+.chapter-continue > span:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.chapter-continue small {
+  color: var(--red-dim);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+.chapter-continue b {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chapter-continue-page {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chapter-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  align-items: start;
+  gap: 1rem;
+  padding: 0.25rem;
+}
+.chapter-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  border: 1.5px solid transparent;
+  border-radius: 4px;
+  color: var(--red);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.13s ease,
+    background 0.13s ease,
+    border-color 0.13s ease,
+    box-shadow 0.13s ease;
+}
+.chapter-card:hover {
+  transform: translate(-2px, -2px);
+  border-color: var(--red);
+  background: var(--paper);
+  box-shadow: var(--shadow-small);
+}
+.chapter-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 0.69;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1.5px solid var(--red);
+  border-radius: 3px;
+  background: var(--paper-deep);
+}
+.chapter-card-cover > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+.chapter-card:hover .chapter-card-cover > img {
+  transform: scale(1.015);
+}
+.chapter-cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--red-dim);
+}
+.chapter-cover-placeholder small {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.chapter-card-number {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  min-width: 1.65rem;
+  padding: 0.25rem 0.3rem;
+  border: 1px solid var(--red);
+  border-radius: 2px;
+  color: var(--red);
+  background: var(--paper);
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.chapter-card-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  border-top: 1px solid var(--red);
+  background: var(--paper);
+}
+.chapter-card-progress i {
+  height: 100%;
+  display: block;
+  background: var(--coral);
+}
+.chapter-card-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.55rem 0.15rem 0.15rem;
+}
+.chapter-card-meta b {
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chapter-card-meta > span {
+  overflow: hidden;
+  color: var(--red-dim);
+  font-size: 0.625rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chapter-card-meta i {
+  color: var(--blue);
+  font-style: normal;
+}
+.chapter-card-arrow {
+  display: none;
+}
+.chapter-browser-empty {
+  min-height: 10rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: var(--red-dim);
+  font-size: 0.875rem;
+}
 .toast {
   position: fixed;
   z-index: 70;
@@ -1614,7 +1906,7 @@ button:disabled {
   background: var(--yellow);
 }
 
-/* Manga reader: subdued field, warm controls, artwork first. */
+/* Lector: controles cálidos y discretos para dejar la página en primer plano. */
 .reader-shell {
   position: fixed;
   z-index: 60;
@@ -2228,8 +2520,7 @@ button:disabled {
   }
 }
 
-/* Responsive type and layout tokens: all dimensions below are CSS pixels/rem,
-   so WebView and operating-system scaling remain in the layout coordinate space. */
+/* Escalas tipográficas y medidas de la interfaz en unidades lógicas del WebView. */
 :root {
   font-size: clamp(15px, 1vw, 16px);
   --titlebar-size: 2.5rem;
@@ -2788,12 +3079,8 @@ body {
 .genre-arrow {
   font-size: 1rem;
 }
-.tiny-favorite,
-.archive-mark {
-  font-size: 0.875rem;
-}
 
-/* Wide-desktop layout: use the whole canvas while capping the navigation rail. */
+/* Escritorios anchos: aprovecha el espacio y limita el ancho de la barra lateral. */
 @media (min-width: 1600px) {
   .sidebar {
     width: 13.75rem;
@@ -2805,7 +3092,7 @@ body {
   }
 }
 
-/* Medium desktop: begin on an icon rail, with an in-app control to expand it. */
+/* Ventanas medianas: inicia con la barra lateral plegada y permite expandirla. */
 @media (min-width: 800px) and (max-width: 1100px) {
   .sidebar {
     width: 13rem;
@@ -2858,7 +3145,7 @@ body {
   }
 }
 
-/* Small windows: turn the sidebar into a dismissible overlay instead of shrinking content. */
+/* Ventanas pequeñas: la barra lateral se convierte en un panel superpuesto. */
 @media (max-width: 799.98px) {
   .app-body {
     position: relative;
@@ -3057,6 +3344,18 @@ body {
   .cover-size-control {
     width: 4rem;
   }
+  .chapter-browser-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .chapter-continue {
+    width: 100%;
+    max-width: none;
+  }
+  .chapter-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.25rem), 1fr));
+    gap: 0.65rem;
+  }
   .cover-picker {
     grid-template-columns: 1fr;
   }
@@ -3092,7 +3391,7 @@ body {
   }
 }
 
-/* Current user palette overrides, including all reader surfaces and native selects. */
+/* Ajustes finales de paleta para la interfaz, el lector y los controles nativos. */
 html,
 body {
   color: var(--red);

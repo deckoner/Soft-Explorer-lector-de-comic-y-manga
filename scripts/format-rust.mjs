@@ -3,7 +3,7 @@ import { homedir, platform } from "node:os";
 import { delimiter, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
-// Use Cargo from rustup even when its bin directory is not in the current PATH.
+// Busca Cargo en rustup aunque su carpeta bin no esté incluida en PATH.
 const executable = platform() === "win32" ? "cargo.exe" : "cargo";
 const candidates = [
   process.env.CARGO,

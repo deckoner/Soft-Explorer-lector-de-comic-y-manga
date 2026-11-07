@@ -14,6 +14,7 @@ interface Props {
   onMore: (manga: Manga) => void;
 }
 
+/** Muestra las obras en filas virtualizadas y carga las portadas bajo demanda. */
 export default function LibraryGrid({
   mangas,
   coverSize,
@@ -32,8 +33,8 @@ export default function LibraryGrid({
     return () => observer.disconnect();
   }, []);
 
-  // Virtualize rows instead of mounting every cover in a large collection.
-  // The CSS auto-fill minimum and this row count deliberately share the same width.
+  // Solo se montan las filas cercanas al área visible. El ancho mínimo coincide con
+  // el de la cuadrícula CSS para que el cálculo de columnas y la disposición encajen.
   const gap = compact ? 1 : 1.25;
   const gapPixels = gap * 16;
   const tileWidth = compact ? Math.max(144, coverSize - 16) : coverSize;
@@ -84,7 +85,7 @@ export default function LibraryGrid({
   );
 }
 
-/** Pide una miniatura reducida, nunca la imagen original a tamaño completo. */
+/** Solicita una miniatura reducida; la imagen original no se carga en la cuadrícula. */
 function MangaCard({
   manga,
   compact,
@@ -96,7 +97,7 @@ function MangaCard({
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
-    invoke<string>("get_thumbnail", { path: manga.coverPath })
+    invoke<string>("get_thumbnail", { path: manga.coverPath, entry: manga.coverEntry })
       .then((path) => alive && setThumbnail(convertFileSrc(path)))
       .catch(() => alive && setFailed(true));
     return () => {
@@ -105,10 +106,10 @@ function MangaCard({
   }, [manga.coverPath]);
   const progress = useMemo(
     () =>
-      manga.lastPage > 0 && manga.pageCount > 0
+      manga.lastRead > 0 && manga.pageCount > 0
         ? Math.min(100, Math.round(((manga.lastPage + 1) / manga.pageCount) * 100))
         : 0,
-    [manga.lastPage, manga.pageCount],
+    [manga.lastPage, manga.lastRead, manga.pageCount],
   );
 
   return (
@@ -157,7 +158,9 @@ function MangaCard({
       <div className="manga-meta">
         <div className="manga-title-row">
           <h3 title={manga.title}>{manga.title}</h3>
-          {manga.favorite && <span className="tiny-favorite">✦</span>}
+          {manga.favorite && (
+            <Heart className="tiny-favorite" size={10} fill="currentColor" aria-hidden="true" />
+          )}
         </div>
         <div className="manga-subtitle">
           <span>{manga.genre}</span>
@@ -168,7 +171,11 @@ function MangaCard({
               {progress}%
             </span>
           ) : (
-            <span>{formatCount(manga.pageCount)} págs.</span>
+            <span>
+              {manga.isSeries
+                ? `${formatCount(manga.chapterCount)} cap.`
+                : `${formatCount(manga.pageCount)} págs.`}
+            </span>
           )}
         </div>
       </div>

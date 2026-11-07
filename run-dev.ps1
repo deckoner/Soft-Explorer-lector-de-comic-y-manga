@@ -7,7 +7,7 @@ if (-not (Test-Path $vsDevCmd)) {
     exit 1
 }
 
-# Import the MSVC and Windows SDK environment into this PowerShell process for Cargo.
+# Carga en esta sesión de PowerShell el entorno MSVC y Windows SDK que necesita Cargo.
 $environmentLines = & $env:ComSpec /d /s /c "`"$vsDevCmd`" -arch=x64 -host_arch=x64 >nul && set"
 foreach ($line in $environmentLines) {
     $separator = $line.IndexOf('=')

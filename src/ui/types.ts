@@ -5,7 +5,11 @@ export interface Manga {
   title: string;
   genre: string;
   pageCount: number;
+  chapterCount: number;
+  isSeries: boolean;
   coverPath: string;
+  coverEntry: string | null;
+  isArchive: boolean;
   favorite: boolean;
   customCover: boolean;
   lastPage: number;
@@ -13,7 +17,28 @@ export interface Manga {
   addedAt: number;
 }
 
-/** Snapshot liviano usado para construir la navegación al arrancar. */
+/** Volumen o carpeta secundaria de una serie, con progreso independiente. */
+export interface Chapter {
+  id: number;
+  mangaId: number;
+  path: string;
+  kind: string;
+  title: string;
+  pageCount: number;
+  coverPath: string;
+  coverEntry: string | null;
+  lastPage: number;
+  lastRead: number;
+}
+
+/** Imagen suelta o entrada indexada dentro de un archivo CBZ/CBR. */
+export interface PageSource {
+  path: string;
+  entry: string | null;
+  label: string;
+}
+
+/** Datos mínimos para construir la navegación al iniciar la aplicación. */
 export interface InitialState {
   libraryPath: string | null;
   mangaCount: number;
