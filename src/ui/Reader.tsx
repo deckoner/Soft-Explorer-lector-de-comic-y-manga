@@ -241,6 +241,10 @@ export default function Reader({
     <div
       className={`reader-shell ${controls ? "controls-visible" : "controls-hidden"}`}
       data-reader-theme={settings.theme === "dark" ? "dark" : "light"}
+      style={{
+        backgroundColor:
+          settings.theme === "dark" ? "var(--reader-bg-dark)" : "var(--reader-bg-light)",
+      }}
       onMouseMove={revealControls}
     >
       <div className="reader-stage" onClick={clickPage} onWheel={wheelPage}>

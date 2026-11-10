@@ -22,11 +22,15 @@
   --reader-control-ink: var(--accent-ink);
   --line: color-mix(in srgb, var(--ink) 48%, transparent);
   --line-soft: color-mix(in srgb, var(--ink) 23%, transparent);
-  --reader-bg-light: #efe7d8;
+  --reader-bg-light: #f9f5eb;
   --reader-bg-dark: #211918;
   --reader-bg: var(--reader-bg-light);
   --reader-panel: var(--canvas);
-  --reader-toolbar: #3e2625;
+  --reader-toolbar: var(--surface);
+  --reader-toolbar-hover: var(--accent-coral);
+  --reader-toolbar-hover-ink: var(--accent-ink);
+  --reader-hit-ink: var(--accent-ink);
+  --reader-play-ink: var(--ink);
   --reader-outline: color-mix(in srgb, var(--ink) 34%, transparent);
   --reader-text: var(--ink);
   --reader-muted: var(--ink-muted);
@@ -136,6 +140,10 @@
   --reader-bg: var(--reader-bg-dark);
   --reader-panel: #332623;
   --reader-toolbar: #3f2d29;
+  --reader-toolbar-hover: var(--accent-yellow);
+  --reader-toolbar-hover-ink: var(--accent-ink);
+  --reader-hit-ink: var(--accent-yellow);
+  --reader-play-ink: var(--accent-yellow);
   --reader-outline: color-mix(in srgb, var(--ink) 30%, transparent);
   --reader-text: var(--ink);
   --reader-muted: var(--ink-muted);
@@ -2014,9 +2022,11 @@ button:disabled {
 }
 .reader-shell[data-reader-theme="light"] {
   --reader-bg: var(--reader-bg-light);
+  background-color: var(--reader-bg-light);
 }
 .reader-shell[data-reader-theme="dark"] {
   --reader-bg: var(--reader-bg-dark);
+  background-color: var(--reader-bg-dark);
 }
 .reader-stage {
   position: relative;
@@ -2115,7 +2125,7 @@ button:disabled {
   height: 27px;
   padding: 5px;
   border: var(--border-thin) solid var(--reader-outline);
-  color: var(--accent-yellow);
+  color: var(--reader-hit-ink);
   background: var(--reader-panel);
   opacity: 0;
   transition: opacity var(--motion-fast) ease;
@@ -2191,8 +2201,8 @@ button:disabled {
 }
 .reader-back:hover,
 .reader-exit:hover {
-  color: var(--accent-yellow);
-  border-color: var(--reader-outline);
+  color: var(--reader-toolbar-hover-ink);
+  border-color: var(--reader-toolbar-hover);
 }
 .reader-title {
   min-width: 0;
@@ -2321,7 +2331,7 @@ button:disabled {
   background: var(--reader-panel);
 }
 .reader-play {
-  color: var(--accent-yellow);
+  color: var(--reader-play-ink);
 }
 .reader-play.playing {
   color: var(--reader-control-ink);
