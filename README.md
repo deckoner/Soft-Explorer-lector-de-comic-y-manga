@@ -1,6 +1,6 @@
 # Soft Explorer
 
-Versión actual: **1.0.1**.
+Versión actual: **1.0.2**.
 
 **Soft Explorer es un lector de escritorio para quienes ya tienen su colección de manga y quieren leerla sin depender de una web, una cuenta o la nube.** Seleccionas una carpeta local y la aplicación organiza las obras por género, conserva tus favoritos y recuerda por dónde ibas.
 

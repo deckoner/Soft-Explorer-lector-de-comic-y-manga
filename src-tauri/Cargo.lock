@@ -3353,7 +3353,7 @@ dependencies = [
 
 [[package]]
 name = "soft-explorer"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "image",
  "natord",

@@ -1,6 +1,6 @@
 [package]
 name = "soft-explorer"
-version = "1.0.1"
+version = "1.0.2"
 description = "Lector local de mangas Soft Explorer"
 authors = ["Soft Explorer"]
 license = "GPL-3.0-or-later"
