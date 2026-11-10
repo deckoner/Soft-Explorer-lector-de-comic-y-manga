@@ -22,7 +22,9 @@
   --reader-control-ink: var(--accent-ink);
   --line: color-mix(in srgb, var(--ink) 48%, transparent);
   --line-soft: color-mix(in srgb, var(--ink) 23%, transparent);
-  --reader-bg: var(--surface-raised);
+  --reader-bg-light: #efe7d8;
+  --reader-bg-dark: #211918;
+  --reader-bg: var(--reader-bg-light);
   --reader-panel: var(--canvas);
   --reader-toolbar: #3e2625;
   --reader-outline: color-mix(in srgb, var(--ink) 34%, transparent);
@@ -131,7 +133,7 @@
   --reader-control-ink: var(--accent-ink);
   --line: color-mix(in srgb, var(--ink) 42%, transparent);
   --line-soft: color-mix(in srgb, var(--ink) 21%, transparent);
-  --reader-bg: #211918;
+  --reader-bg: var(--reader-bg-dark);
   --reader-panel: #332623;
   --reader-toolbar: #3f2d29;
   --reader-outline: color-mix(in srgb, var(--ink) 30%, transparent);
@@ -2009,6 +2011,12 @@ button:disabled {
   color: var(--reader-text);
   background: var(--reader-bg);
   animation: fade-in var(--motion-enter) ease;
+}
+.reader-shell[data-reader-theme="light"] {
+  --reader-bg: var(--reader-bg-light);
+}
+.reader-shell[data-reader-theme="dark"] {
+  --reader-bg: var(--reader-bg-dark);
 }
 .reader-stage {
   position: relative;
