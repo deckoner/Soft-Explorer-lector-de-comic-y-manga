@@ -58,6 +58,7 @@ export default function Reader({
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState("");
   const fadeTimer = useRef<number | undefined>(undefined);
+  const presentationGraceUntil = useRef(0);
   const total = pages.length;
 
   useEffect(() => {
@@ -164,6 +165,7 @@ export default function Reader({
   }, [doublePage, page, playing, savePage, seconds, total]);
 
   const revealControls = () => {
+    if (performance.now() < presentationGraceUntil.current) return;
     setControls(true);
     if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
     fadeTimer.current = window.setTimeout(() => setControls(false), 2600);
@@ -172,6 +174,7 @@ export default function Reader({
   const enterPresentation = () => {
     // Durante la presentación, la barra de controles no debe tapar la página.
     if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
+    presentationGraceUntil.current = performance.now() + 2000;
     setControls(false);
   };
 
