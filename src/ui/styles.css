@@ -990,8 +990,8 @@ button:disabled {
   cursor: pointer;
 }
 .select-box select option {
-  color: var(--reader-control-ink);
-  background: var(--canvas);
+  color: var(--ink);
+  background: var(--surface);
 }
 .view-toggle {
   width: 35px;
@@ -1504,8 +1504,8 @@ button:disabled {
   font-size: var(--font-size-xs);
 }
 .setting-row select option {
-  color: var(--reader-control-ink);
-  background: var(--canvas);
+  color: var(--ink);
+  background: var(--surface);
 }
 .range-control {
   width: 138px;
