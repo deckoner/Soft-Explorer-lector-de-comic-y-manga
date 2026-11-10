@@ -1,7 +1,7 @@
 {
   "name": "soft-explorer",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "tsc && vite build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
+    "pretauri:build": "node scripts/check-version.mjs",
     "tauri:build": "tauri build",
     "format:rust": "node scripts/format-rust.mjs",
     "format:rust:check": "node scripts/format-rust.mjs --check",

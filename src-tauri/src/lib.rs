@@ -147,13 +147,17 @@ fn connect(path: &Path) -> Result<Connection, String> {
     Ok(connection)
 }
 
-/// Crea el esquema en la carpeta de datos del usuario y añade la columna incremental
-/// cuando se abre una base creada por una versión anterior.
+/// Crea o amplía el esquema en una transacción para no dejar una migración a medias.
 fn initialize_database(path: &Path) -> Result<(), String> {
     let db = connect(path)?;
-    db.execute_batch(
-        "PRAGMA journal_mode=WAL;
-        CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    db.execute_batch("PRAGMA journal_mode=WAL;")
+        .map_err(|error| error.to_string())?;
+    let transaction = db
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS manga(
             id INTEGER PRIMARY KEY,
             path TEXT NOT NULL UNIQUE,
@@ -189,53 +193,54 @@ fn initialize_database(path: &Path) -> Result<(), String> {
         CREATE INDEX IF NOT EXISTS manga_genre_idx ON manga(genre COLLATE NOCASE);
         CREATE INDEX IF NOT EXISTS manga_favorite_idx ON manga(favorite);
         CREATE INDEX IF NOT EXISTS manga_last_read_idx ON manga(last_read);
-        CREATE INDEX IF NOT EXISTS chapters_manga_idx ON chapters(manga_id);
-        CREATE TEMP TABLE IF NOT EXISTS scan_keep(path TEXT PRIMARY KEY);
-        CREATE TEMP TABLE IF NOT EXISTS scan_keep_chapters(
-            manga_id INTEGER NOT NULL,
-            path TEXT NOT NULL,
-            kind TEXT NOT NULL,
-            PRIMARY KEY(manga_id,path,kind)
-        );",
-    )
-    .map_err(|error| error.to_string())?;
-
-    let mut columns = db
-        .prepare("PRAGMA table_info(manga)")
-        .map_err(|error| error.to_string())?;
-    let names: Vec<String> = columns
-        .query_map([], |row| row.get(1))
-        .map_err(|error| error.to_string())?
-        .collect::<Result<_, _>>()
-        .map_err(|error| error.to_string())?;
-    if !names.iter().any(|name| name == "folder_mtime") {
-        db.execute(
-            "ALTER TABLE manga ADD COLUMN folder_mtime INTEGER NOT NULL DEFAULT 0",
-            [],
+        CREATE INDEX IF NOT EXISTS chapters_manga_idx ON chapters(manga_id);",
         )
         .map_err(|error| error.to_string())?;
+
+    let names: Vec<String> = {
+        let mut columns = transaction
+            .prepare("PRAGMA table_info(manga)")
+            .map_err(|error| error.to_string())?;
+        let names = columns
+            .query_map([], |row| row.get(1))
+            .map_err(|error| error.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|error| error.to_string())?;
+        names
+    };
+    if !names.iter().any(|name| name == "folder_mtime") {
+        transaction
+            .execute(
+                "ALTER TABLE manga ADD COLUMN folder_mtime INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
     }
     if !names.iter().any(|name| name == "cover_entry") {
-        db.execute(
-            "ALTER TABLE manga ADD COLUMN cover_entry TEXT NOT NULL DEFAULT ''",
-            [],
-        )
-        .map_err(|error| error.to_string())?;
+        transaction
+            .execute(
+                "ALTER TABLE manga ADD COLUMN cover_entry TEXT NOT NULL DEFAULT ''",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
     }
     if !names.iter().any(|name| name == "chapter_count") {
-        db.execute(
-            "ALTER TABLE manga ADD COLUMN chapter_count INTEGER NOT NULL DEFAULT 0",
-            [],
-        )
-        .map_err(|error| error.to_string())?;
+        transaction
+            .execute(
+                "ALTER TABLE manga ADD COLUMN chapter_count INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
     }
     if !names.iter().any(|name| name == "is_series") {
-        db.execute(
-            "ALTER TABLE manga ADD COLUMN is_series INTEGER NOT NULL DEFAULT 0",
-            [],
-        )
-        .map_err(|error| error.to_string())?;
+        transaction
+            .execute(
+                "ALTER TABLE manga ADD COLUMN is_series INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
     }
+    transaction.commit().map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -1455,6 +1460,7 @@ pub fn run() {
             } else {
                 "release"
             };
+            // app_data_dir no depende de la ubicación del ejecutable y sobrevive a su reemplazo.
             let data_dir = app.path().app_data_dir()?.join(channel);
             let thumbnails = data_dir.join("thumbnails");
             let readers = data_dir.join("reader-cache");
@@ -1567,5 +1573,89 @@ mod tests {
         .unwrap();
         assert_eq!(bytes, expected);
         assert_eq!(fs::read_dir(&temp.0).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn database_upgrade_keeps_existing_preferences_and_reading_progress() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("soft-explorer-migration-test-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+        let _temp = TempFolder(root.clone());
+        let database = root.join("legacy.sqlite3");
+
+        let legacy = Connection::open(&database).unwrap();
+        legacy
+            .execute_batch(
+                "CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                 INSERT INTO settings(key,value) VALUES('library','D:/Manga');
+                 CREATE TABLE manga(
+                    id INTEGER PRIMARY KEY,
+                    path TEXT NOT NULL UNIQUE,
+                    title TEXT NOT NULL,
+                    genre TEXT NOT NULL,
+                    page_count INTEGER NOT NULL DEFAULT 0,
+                    cover_path TEXT NOT NULL DEFAULT '',
+                    cover_entry TEXT NOT NULL DEFAULT '',
+                    folder_mtime INTEGER NOT NULL DEFAULT 0,
+                    custom_cover INTEGER NOT NULL DEFAULT 0,
+                    favorite INTEGER NOT NULL DEFAULT 0,
+                    last_page INTEGER NOT NULL DEFAULT 0,
+                    last_read INTEGER NOT NULL DEFAULT 0,
+                    added_at INTEGER NOT NULL DEFAULT 0
+                 );
+                 INSERT INTO manga(
+                    id,path,title,genre,page_count,cover_path,custom_cover,favorite,last_page,last_read
+                 ) VALUES(7,'D:/Manga/Drama/Obra','Obra','Drama',80,'D:/Manga/Drama/Obra/cover.jpg',1,1,42,1700000000);",
+            )
+            .unwrap();
+        drop(legacy);
+
+        initialize_database(&database).unwrap();
+
+        let upgraded = connect(&database).unwrap();
+        let preserved: (String, String, i64, i64, i64, i64, String, i64, i64) = upgraded
+            .query_row(
+                "SELECT path,title,favorite,custom_cover,last_page,last_read,cover_path,chapter_count,is_series
+                 FROM manga WHERE id=7",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                        row.get(8)?,
+                    ))
+                },
+            )
+            .unwrap();
+
+        assert_eq!(preserved.0, "D:/Manga/Drama/Obra");
+        assert_eq!(preserved.1, "Obra");
+        assert_eq!(preserved.2, 1);
+        assert_eq!(preserved.3, 1);
+        assert_eq!(preserved.4, 42);
+        assert_eq!(preserved.5, 1_700_000_000);
+        assert_eq!(preserved.6, "D:/Manga/Drama/Obra/cover.jpg");
+        assert_eq!(preserved.7, 0);
+        assert_eq!(preserved.8, 0);
+        assert_eq!(
+            setting(&upgraded, "library").unwrap().as_deref(),
+            Some("D:/Manga")
+        );
+        assert!(upgraded
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chapters'",
+                [],
+                |_| Ok(()),
+            )
+            .is_ok());
     }
 }

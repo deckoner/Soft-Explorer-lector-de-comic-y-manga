@@ -4,7 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import authorLogo from "../../deckoner_favicon.svg";
+import authorLogo from "../assets/deckoner_favicon.svg";
 import {
   Asterisk,
   ArrowLeft,

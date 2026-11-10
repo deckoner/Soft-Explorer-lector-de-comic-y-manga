@@ -1,5 +1,7 @@
 # Soft Explorer
 
+Versión actual: **1.0.1**.
+
 **Soft Explorer es un lector de escritorio para quienes ya tienen su colección de manga y quieren leerla sin depender de una web, una cuenta o la nube.** Seleccionas una carpeta local y la aplicación organiza las obras por género, conserva tus favoritos y recuerda por dónde ibas.
 
 Está construido con **Rust y Tauri 2**, con una interfaz en **React y TypeScript**. Su aspecto Retro-Modern Geek combina crema, rojo óxido, coral, azul y amarillo, con DM Sans, Bricolage Grotesque y sombras sólidas desplazadas.
@@ -30,12 +32,22 @@ La interfaz y el backend se comunican mediante comandos de Tauri. La interfaz so
 - `src/ui/ChapterBrowser.tsx` muestra los capítulos de una serie y sus portadas.
 - `src/ui/Reader.tsx` controla la lectura, la navegación entre páginas, la presentación y el progreso.
 - `src/ui/types.ts` define los datos compartidos por los componentes; `src/ui/format.ts` reúne utilidades de formato y errores.
-- `src/ui/styles.css` contiene el tema, la disposición adaptable y los estilos del lector.
+- `src/ui/styles.css` reúne las variables de color, tipografía, espaciado, bordes y sombras de los temas claro y oscuro, además de la disposición adaptable.
 - `src-tauri/src/lib.rs` implementa el escáner, el catálogo SQLite, la lectura de archivos y las cachés.
 - `src-tauri/src/main.rs` inicia el backend; `src-tauri/tauri.conf.json` configura la ventana, permisos y empaquetado.
 - `scripts/format-rust.mjs` permite ejecutar `cargo fmt` aunque Cargo no esté en el `PATH`.
 
 Las miniaturas y las páginas convertidas se guardan en subcarpetas privadas de datos de la aplicación. Los comandos que modifican el catálogo reciben identificadores, mientras que el backend vuelve a comprobar las rutas antes de leer o guardar una portada.
+
+## Actualizar una instalación
+
+Las actualizaciones se hacen ejecutando el nuevo instalador sobre la versión instalada; no hay un descargador automático dentro de la aplicación. Cierra Soft Explorer y utiliza el mismo tipo de paquete que instalaste originalmente. En Windows, usa el `.exe` de NSIS para una instalación NSIS o el `.msi` para una instalación MSI. En Linux, actualiza el paquete `.deb` o `.rpm` con el gestor correspondiente; si usas AppImage, reemplaza el archivo por la versión nueva.
+
+No desinstales la versión anterior antes de actualizar. El identificador `local.softexplorer.manga`, el nombre del ejecutable y el código de actualización MSI están fijados para mantener la identidad de la instalación. Las bases de datos, preferencias y progreso viven en el directorio de datos del usuario, fuera de la carpeta de instalación. Las migraciones de SQLite se aplican en una transacción y conservan los datos existentes. Una prueba automatizada comprueba la migración de una base anterior con favoritos, portada, preferencias y progreso.
+
+Cada actualización debe llevar una versión superior a la anterior. Mantén la misma versión en `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` y `src-tauri/Cargo.lock`. `npm run tauri:build` comprueba que coincidan antes de crear los instaladores.
+
+El entorno de desarrollo (`development`) y la versión instalada (`release`) guardan datos por separado. La biblioteca usada al probar una compilación de desarrollo no se migra a la versión instalada.
 
 ## Empezar a usarlo
 

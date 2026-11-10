@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Soft Explorer",
-  "version": "1.0.0",
+  "mainBinaryName": "soft-explorer",
+  "version": "1.0.1",
   "identifier": "local.softexplorer.manga",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -19,8 +20,7 @@
         "minWidth": 640,
         "minHeight": 560,
         "decorations": false,
-        "resizable": true,
-        "backgroundColor": "#F9F5EB"
+        "resizable": true
       }
     ],
     "security": {
@@ -34,6 +34,14 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      },
+      "wix": {
+        "upgradeCode": "8f92cf54-fee5-5b0e-81b6-8d036104a15d"
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
