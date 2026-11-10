@@ -157,11 +157,8 @@ export default function Reader({
     if (!playing) return;
     const timer = window.setInterval(() => {
       const step = doublePage && page !== 0 ? 2 : 1;
-      if (page + step >= total) {
-        savePage(Math.max(0, total - 1));
-        setPlaying(false);
-        setAutoActive(false);
-      } else savePage(page + step);
+      const nextPage = page + step;
+      savePage(nextPage >= total ? 0 : nextPage);
     }, seconds * 1000);
     return () => window.clearInterval(timer);
   }, [doublePage, page, playing, savePage, seconds, total]);
